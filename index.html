@@ -464,7 +464,7 @@ const NARRATIVA_CAPA = {
     titulo: 'El ancho de tu calle\ndecide qué puede crecer\nen tu barrio.',
     cuerpo: [
       'El POT de Ciudad de Guatemala clasifica cada predio en una zona G — del G0 (barranco, sin construcción) al G5 (máxima densidad). Esa zona no la elige el propietario: <strong>la genera el ancho de la calle frente al predio.</strong>',
-      'Una vía de 50 metros produce G5. Una de 20 metros produce G3. Una zona de pendiente mayor a 20° produce G0. El sistema es elegante: donde hay más infraestructura vial, se permite más construcción.',
+      'Una vía de 50 metros produce G5. Una de 20 metros produce G3. Una pendiente mayor a 40° produce G0, y entre 20° y 40°, G1. El sistema es elegante: donde hay más infraestructura vial, se permite más construcción.',
       'La promesa original del POT era clara: densificar junto al transporte público, proteger los barrancos, y distribuir el crecimiento de forma ordenada. En teoría, más densidad = más oferta = vivienda más accesible.',
     ],
     tension: {
@@ -516,7 +516,7 @@ const NARRATIVA_CAPA = {
 const NARRATIVA_ZONA = {
   G0: {
     nom:'G0 — Natural', sub:'Barranco · Conservación ambiental', hex:'#2d6e1e',
-    params:[{k:'Construcción',v:'No permitida'},{k:'IE base',v:'0'},{k:'Permeabilidad',v:'100%'},{k:'Pendiente típica',v:'> 40°'}],
+    params:[{k:'Ocupación humana',v:'No permitida'},{k:'IE base',v:'0.8 (solo por Junta)'},{k:'Permeabilidad',v:'80%'},{k:'Pendiente',v:'> 40°'}],
     bloques:[
       {tag:'Qué es',txt:'Son las áreas de barranco y vegetación nativa que el POT protege como zonas no construibles. Incluye pendientes mayores a 40° y la franja de 15 metros a cada lado de ríos y quebradas.'},
       {tag:'Por qué importa',txt:'Los barrancos son la infraestructura hídrica y ecológica de la ciudad. Absorben lluvia, filtran agua, regulan temperatura y mantienen biodiversidad. No son terrenos baldíos — son servicios ambientales que la ciudad usa sin pagar.'},
@@ -526,7 +526,7 @@ const NARRATIVA_ZONA = {
   },
   G1: {
     nom:'G1 — Rural', sub:'Densidad mínima · IE 1.2 · Perm 70%', hex:'#5abf28',
-    params:[{k:'IE base',v:'1.2'},{k:'IE ampliado',v:'1.8'},{k:'Altura máx.',v:'16 m'},{k:'Permeabilidad',v:'70%'},{k:'Frente mínimo',v:'20 m'}],
+    params:[{k:'IE base',v:'1.2'},{k:'IE ampliado',v:'1.8'},{k:'Altura base',v:'16 m'},{k:'Altura ampliada',v:'24 m'},{k:'Permeabilidad',v:'70%'},{k:'Frente mínimo',v:'20 m'}],
     bloques:[
       {tag:'Qué es',txt:'Zona de densidad mínima. El 70% del predio debe quedar permeable — sin construcción ni pavimento. En la práctica: una casa con jardín grande en un lote amplio. No hay edificios de apartamentos viables en G1.'},
       {tag:'Quién vive aquí',txt:'Generalmente colonias residenciales establecidas, zonas de transición entre ciudad y áreas naturales, o desarrollos de baja densidad. La vida cotidiana en G1 depende casi completamente del vehículo privado.'},
@@ -536,7 +536,7 @@ const NARRATIVA_ZONA = {
   },
   G2: {
     nom:'G2 — Semiurbana', sub:'Densidad baja · IE 1.8 · Perm 40%', hex:'#a8d42a',
-    params:[{k:'IE base',v:'1.8'},{k:'IE ampliado',v:'2.7'},{k:'Altura máx.',v:'16 m'},{k:'Permeabilidad',v:'40%'},{k:'Frente mínimo',v:'8 m'}],
+    params:[{k:'IE base',v:'1.8'},{k:'IE ampliado',v:'2.7'},{k:'Altura base',v:'16 m'},{k:'Altura ampliada',v:'24 m'},{k:'Permeabilidad',v:'40%'},{k:'Frente mínimo',v:'8 m'}],
     bloques:[
       {tag:'Qué es',txt:'Zona de transición entre lo rural y lo urbano consolidado. Permite dúplex y edificios de 2-3 niveles. El 40% del predio sigue siendo permeable — todavía hay jardín, pero la ciudad empieza a densificarse.'},
       {tag:'La tensión del cambio',txt:'En G2 conviven vecinos que llevan décadas en sus casas con el inicio de la presión de densificación. El POT permite construir más — y el mercado empieza a notarlo. Muchas colonias G2 están en proceso silencioso de transformación.'},
@@ -1082,17 +1082,17 @@ const SIM_DATA={
     carriles:2, brt:false, camellon:false, arboles:false,
     edificioH:120, edificioPodiumH:0,
     familias:6, viajes:42, suelo:'base',
-    cos:70, retiro:3,
+    perm:10, bi:12, sep:3,
     usos:['Residencial','Comercio PB','Oficinas pequeñas'],
     precioM2:'Q 6,000 – 9,000',
     g2vsG3:true,
-    alerta:'Vía T0 angosta. El POT la clasifica como vía existente y produce G3 — no G2 — porque ya funciona como calle urbana. Si fuera más angosta aún, produciría G2: IE 1.8, perm 40%, menos construcción permitida.',
+    alerta:'Vía T0 angosta. El POT la clasifica como vía existente y produce G3 — no G2 — porque ya funciona como calle urbana. Los predios a más de 560 metros recorridos de estas vías pasan a G2: IE 1.8, perm 40%, menos construcción permitida.',
   },
   T2:{metros:20, zona:'G3', zonaAnterior:'G2', zonaCol:'#f5c000', ie:2.7, alt:16, label:'T2',
     carriles:4, brt:false, camellon:false, arboles:false,
     edificioH:130, edificioPodiumH:0,
     familias:6, viajes:42, suelo:'base',
-    cos:70, retiro:3,
+    perm:10, bi:12, sep:3,
     usos:['Residencial','Comercio PB','Oficinas pequeñas'],
     precioM2:'Q 6,000 – 9,000',
     g2vsG3:true,
@@ -1102,7 +1102,7 @@ const SIM_DATA={
     carriles:4, brt:true, camellon:false, arboles:false,
     edificioH:200, edificioPodiumH:55,
     familias:16, viajes:112, suelo:'+45%',
-    cos:80, retiro:0,
+    perm:0, bi:16, sep:4,
     usos:['Residencial','Comercio','Oficinas','Hotel','Mixto'],
     precioM2:'Q 9,000 – 13,000',
     g2vsG3:false,
@@ -1112,17 +1112,17 @@ const SIM_DATA={
     carriles:4, brt:true, camellon:true, arboles:true,
     edificioH:280, edificioPodiumH:70,
     familias:32, viajes:224, suelo:'+110%',
-    cos:90, retiro:0,
+    perm:0, bi:16, sep:5,
     usos:['Residencial','Comercio','Oficinas','Hotel','Centro comercial','Mixto'],
     precioM2:'Q 13,000 – 18,000',
     g2vsG3:false,
-    alerta:'T4 produce G5. Camellón con árboles, BRT de doble sentido. IE 6.0 permite hasta 128m con incentivos. Alta densidad que requiere Transmetro funcionando — sin él, los +224 viajes/día adicionales por manzana colapsan la vía.',
+    alerta:'T4 produce G5. Camellón con árboles, BRT de doble sentido. Con incentivos, la altura sube de 64m a 96m, y el reglamento de incentivos de 2024 abre aún más margen. Alta densidad que requiere Transmetro funcionando — sin él, los +224 viajes/día adicionales por manzana colapsan la vía.',
   },
   T5:{metros:50, zona:'G5', zonaAnterior:'G4', zonaCol:'#d42018', ie:6.0, alt:64, label:'T5',
     carriles:6, brt:true, camellon:true, arboles:true,
     edificioH:320, edificioPodiumH:80,
     familias:40, viajes:280, suelo:'+130%',
-    cos:90, retiro:0,
+    perm:0, bi:16, sep:5,
     usos:['Residencial','Comercio','Oficinas','Hotel','Centro comercial','Mixto'],
     precioM2:'Q 14,000 – 20,000',
     g2vsG3:false,
@@ -1382,20 +1382,20 @@ function actualizarMetricas(tipo,d){
   const g2bloque=d.g2vsG3?`
     <div class="sim-g2g3">
       <div class="sim-g2g3-label">¿Por qué G3 y no G2?</div>
-      <div class="sim-g2g3-txt">Si esta calle fuera más angosta (sin categoría T), el POT la clasificaría G2: IE 1.8, perm 40%, altura máx 16m. La diferencia entre G2 y G3 puede ser cuestión de metros de ancho — y vale mucho dinero.</div>
+      <div class="sim-g2g3-txt">Un predio a menos de 560 metros recorridos de esta vía es G3. Más lejos, el POT lo clasifica G2: IE 1.8 y 40% permeable. La diferencia entre G2 y G3 puede ser cuestión de unas cuadras — y vale mucho dinero.</div>
       <div class="sim-g2g3-compare">
         <div class="sim-g2g3-col">
           <div class="sim-g2g3-zona" style="background:#a8d42a">G2</div>
           <div class="sim-g2g3-stat">IE 1.8</div>
           <div class="sim-g2g3-stat">Perm 40%</div>
-          <div class="sim-g2g3-stat">Retiro 5m</div>
+          <div class="sim-g2g3-stat">Pegado hasta 8m</div>
         </div>
         <div class="sim-g2g3-arrow">→</div>
         <div class="sim-g2g3-col">
           <div class="sim-g2g3-zona" style="background:#f5c000">G3</div>
           <div class="sim-g2g3-stat sim-warn">IE 2.7</div>
           <div class="sim-g2g3-stat">Perm 10%</div>
-          <div class="sim-g2g3-stat">Retiro 3m</div>
+          <div class="sim-g2g3-stat">Pegado hasta 12m</div>
         </div>
       </div>
     </div>`:'';
@@ -1419,12 +1419,16 @@ function actualizarMetricas(tipo,d){
       <span class="sim-met-v">${d.alt}m</span>
     </div>
     <div class="sim-met-row">
-      <span class="sim-met-k">COS (ocup. suelo)</span>
-      <span class="sim-met-v">${d.cos}%</span>
+      <span class="sim-met-k">Permeabilidad mínima</span>
+      <span class="sim-met-v">${d.perm}%</span>
     </div>
     <div class="sim-met-row">
-      <span class="sim-met-k">Retiro frontal</span>
-      <span class="sim-met-v">${d.retiro}m</span>
+      <span class="sim-met-k">Pegado a linderos hasta</span>
+      <span class="sim-met-v">${d.bi}m</span>
+    </div>
+    <div class="sim-met-row">
+      <span class="sim-met-k">Arriba, se separa</span>
+      <span class="sim-met-v">${d.sep}m</span>
     </div>
     <div class="sim-met-row">
       <span class="sim-met-k">Familias adicionales</span>
