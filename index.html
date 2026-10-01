@@ -85,6 +85,21 @@ table.z td{padding:6px;border-top:1px solid var(--g300);font-variant-numeric:tab
 .cta{display:flex;justify-content:space-between;align-items:center;min-height:44px;padding:0 14px;border:var(--line);border-radius:8px;font-size:13px;font-weight:700;color:var(--black);text-decoration:none;background:var(--white)}
 .cta.pri{background:var(--black);color:var(--white)}
 .nota{font-size:11px;color:var(--g600);line-height:1.55}
+details.mas{border:var(--soft);border-radius:8px;padding:0 12px;background:var(--white)}
+details.mas summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;min-height:40px;font-size:12px;font-weight:700}
+details.mas summary::-webkit-details-marker{display:none}
+details.mas summary::after{content:'+';font-size:16px;color:var(--g600)}
+details.mas[open] summary::after{content:'−'}
+details.mas p,details.mas li{font-size:12.5px;line-height:1.6;color:var(--g700);margin-bottom:8px}
+details.mas ul{padding-left:18px;margin-bottom:8px}
+details.mas.tension{border-left:2px solid var(--black);background:#f7f7f7}
+#texto details.mas{margin-top:8px}
+.cifras-lab{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.cifras-lab div{border:var(--soft);border-radius:8px;padding:8px 10px}
+.cifras-lab b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.cifras-lab span{font-size:11px;color:var(--g600)}
+table.z.lab tr.on td{font-weight:700;background:#eef2fc}
+#lab{display:flex;flex-direction:column;gap:12px}
 
 @media (max-width:768px){
   :root{--panel:100%}
@@ -128,6 +143,7 @@ table.z td{padding:6px;border-top:1px solid var(--g300);font-variant-numeric:tab
       <button class="chip" data-capa="altura">Alturas y retiros</button>
       <button class="chip" data-capa="perm">Suelo que respira</button>
       <button class="chip" data-capa="incent">Incentivos</button>
+      <button class="chip" data-capa="lab">Un terreno</button>
     </div>
     <div id="ficha" role="dialog" aria-live="polite"><div class="h"><div><b id="f-t"></b><small id="f-s"></small></div><button class="x" aria-label="Cerrar">✕</button></div><div class="b" id="f-b"></div></div>
     <div id="leyenda" aria-label="Colores">
@@ -513,7 +529,7 @@ lotes.forEach(l => { l.r = rnd(); l.r2 = rnd(); l.r3 = rnd(); l.r4 = rnd(); l.r5
 // ═══ Formas de edificio: bloque, L, patio y torre (geometría de rectángulos, liviana) ═══
 // Todas usan los metros que permite su zona: cambian la forma y la altura, no los metros.
 const FORMAS = {G2:['bloque','L','bloque'], G3:['bloque','L','patio','bloque'], G4:['bloque','L','patio','torre'], G5:['bloque','L','patio','torre','torre']};
-const NOMBRE_FORMA = {bloque:'bloque', L:'en L', patio:'con patio central', torre:'torre sobre basamento'};
+const NOMBRE_FORMA = {bloque:'bloque', L:'en L', patio:'con patio central', torre:'torre'};
 const R = (x0,x1,y0,y1) => ({x0,x1,y0,y1});
 const aR = r => r ? Math.max(0,r.x1-r.x0)*Math.max(0,r.y1-r.y0) : 0;
 const inR = (r,d) => (r.x1-r.x0>2*d+0.5 && r.y1-r.y0>2*d+0.5) ? R(r.x0+d,r.x1-d,r.y0+d,r.y1-d) : null;
@@ -524,7 +540,9 @@ function recortar(f, E){
   const r = iR(f.r,E); if(!r) return null;
   const c = f.corte ? iR(f.corte,r) : null;
   let h = null;
-  if(f.hueco){ const H=f.hueco; if(H.x0-r.x0>=3.5 && r.x1-H.x1>=3.5 && H.y0-r.y0>=3.5 && r.y1-H.y1>=3.5) h=H; }
+  if(f.hueco){ const H=f.hueco;
+    if(H.x0-r.x0>=3.5 && r.x1-H.x1>=3.5 && H.y0-r.y0>=3.5 && r.y1-H.y1>=3.5) h=H;
+    else { const p = inR(r, 3.5); if(p && p.x1-p.x0 >= 4 && p.y1-p.y0 >= 4) h = p; } }  // patio más chico, con lado mínimo de 4 m
   return {r, corte:c, hueco:h};
 }
 // Contorno de la forma (con la esquina recortada si es L) y su hueco si es patio
@@ -544,32 +562,36 @@ function contorno(f){
   return {out, h};
 }
 const cacheVol = {};
-function volLote(l, zona, esc){
-  const key = l.i+'_'+l.j+'_'+l.a+'_'+l.b+'_'+zona+'_'+esc; if(cacheVol[key]) return cacheVol[key];
+// op (opcional): {forma, conBase} para el paso "Un terreno, muchas posibilidades"
+function volLote(l, zona, esc, op){
+  const key = l.i+'_'+l.j+'_'+l.a+'_'+l.b+'_'+zona+'_'+esc+'_'+(op ? op.forma+op.conBase : ''); if(cacheVol[key]) return cacheVol[key];
   const g = POT[zona], A = LW*LD, lote = R(-LW/2+.5, LW/2-.5, -LD/2+.5, LD/2-.5);
   const lim = esc==='ampliado' ? {ie:g.ie_a, alt:g.alt_a} : {ie:g.ie, alt:g.alt};
   let F = g.perm>0 ? inHastaArea(lote, aR(lote)*(1-g.perm)) : lote;
   F = inHastaArea(F, aR(F)*0.9);
   const E = inR(lote, g.sepBS) || F;
-  const lista = FORMAS[zona] || ['bloque'], forma = lista[Math.floor(l.r4*lista.length)];
+  const lista = FORMAS[zona] || ['bloque'], forma = (op && op.forma) || lista[Math.floor(l.r4*lista.length)];
+  // Planta baja completa (basamento) o la misma forma desde el suelo: ambas valen
+  const conBase = op && op.conBase != null ? op.conBase : (forma==='bloque' ? false : forma==='torre' ? l.r3 > .25 : l.r5 > .5);
   const w = F.x1-F.x0, d = F.y1-F.y0, base = {r:F};
   if(forma==='L'){ const izq=l.r5<.5, abajo=l.r3<.5, cw=w*(.42+.1*l.r2), cd=d*(.42+.1*l.r);
     base.corte = R(izq?F.x0:F.x1-cw, izq?F.x0+cw:F.x1, abajo?F.y0:F.y1-cd, abajo?F.y0+cd:F.y1); }
   if(forma==='patio' && w>16 && d>16){ const hw=Math.max(6,w*.34), hd=Math.max(6,d*.34), cx=(F.x0+F.x1)/2, cy=(F.y0+F.y1)/2;
     base.hueco = R(cx-hw/2, cx+hw/2, cy-hd/2, cy+hd/2); }
-  let torre = null, nBase = 0;
-  if(forma==='torre'){ nBase = l.r5<.5 ? 1 : 2; const p=.45+.2*l.r2, ew=E.x1-E.x0, ed=E.y1-E.y0, cx=(E.x0+E.x1)/2, cy=(E.y0+E.y1)/2;
+  let torre = null; const nBase = conBase ? (l.r5<.5 ? 1 : 2) : 0;
+  if(forma==='torre'){ const p=.45+.2*l.r2, ew=E.x1-E.x0, ed=E.y1-E.y0, cx=(E.x0+E.x1)/2, cy=(E.y0+E.y1)/2;
     torre = {r:R(cx-ew*Math.sqrt(p)/2, cx+ew*Math.sqrt(p)/2, cy-ed*Math.sqrt(p)/2, cy+ed*Math.sqrt(p)/2)}; }
   const niv = []; let acum = 0;
   for(let i=1;i<60;i++){
     const z1 = i*3; if(z1 > lim.alt+1e-6) break;
-    const f = torre ? ((i<=nBase && z1<=g.bs) ? {r:F} : torre) : (z1 <= g.bs+1e-6 ? base : recortar(base, E));
+    const f = (nBase && i<=nBase && z1<=g.bs+1e-6) ? {r:F} : torre ? torre : (z1 <= g.bs+1e-6 ? base : recortar(base, E));
     if(!f) break; const a = areaF(f); if(a < 1) break;
     const resta = lim.ie*A - acum; if(resta <= 1) break; if(a > resta && resta < a*.25) break;
     acum += Math.min(a, resta);
     niv.push({z0:z1-3, z1, f, inc: !(acum <= g.ie*A+.5 && z1 <= g.alt+1e-6)});
   }
-  return cacheVol[key] = {niv, forma, m2:acum, alt: niv.length ? niv[niv.length-1].z1 : 0};
+  const libre = 1 - areaF(niv.length ? niv[0].f : {r:F}) / A;
+  return cacheVol[key] = {niv, forma, conBase, nBase, m2:acum, alt: niv.length ? niv[niv.length-1].z1 : 0, libre, lim:lim.ie*A};
 }
 
 // ═══ Motor gráfico ═══
@@ -701,15 +723,21 @@ function construirEdificios(){
   edif = new THREE.Group(); scene.add(edif);
   const L = new Lote(), capa = S.capa;
   lotes.forEach(l => {
-    const z = zonaBloque(l.i, l.j); if(z==='PARQUE') return;
+    let z = zonaBloque(l.i, l.j); if(z==='PARQUE') return;
+    if(capa==='lab') z = S.lab.zona;
     const g = POT[z], col = ZC[z];
+    if(capa==='lab' && l !== S.lab.lote){
+      L.caja(l.x,0,l.z,LW-1,0.2,LD-1,0xf6f6f4,[0xe0e0dc,1]);
+      const pisos = l.r<.55 ? 1+Math.floor(l.r2*2) : l.r<.85 ? 2+Math.floor(l.r2*3) : 5+Math.floor(l.r2*5);
+      L.caja(l.x,0.2,l.z,(LW-3)*(.62+l.r3*.33),pisos*3,(LD-4)*(.6+l.r2*.35),0xf1f1ef,[0xd4d4d0,1]); return;
+    }
     const centro = (l.i===2 || l.i===3) && !(l.j===2 || l.j===3);
     const resaltar = capa==='zonas' && S.verCentro && centro;
-    const potencial = (capa!=='hoy' && capa!=='zonas') || resaltar;
+    const potencial = (capa!=='hoy' && capa!=='zonas') || resaltar || capa==='lab';
     // Suelo del lote
     if(capa==='hoy') L.caja(l.x,0,l.z,LW-1,0.2,LD-1,0xfafaf8,[0xd0d0cc,1]);
     else if(capa==='perm') L.caja(l.x,0,l.z,LW-1,0.2,LD-1,0xcfe0c2,[0xa9bd9c,1]);
-    else L.caja(l.x,0,l.z,LW-1,0.2,LD-1,tint(col,.45),resaltar?[AZUL,2.6]:[0x0a0a0a,1]);
+    else L.caja(l.x,0,l.z,LW-1,0.2,LD-1,tint(col,.45),(resaltar||capa==='lab')?[AZUL,2.6]:[0x0a0a0a,1]);
     if(!potencial){
       // Ciudad de hoy: alturas variadas, huella irregular, tanques en azoteas. Con color de zona desde el paso 2.
       let pisos = l.r<.55 ? 1+Math.floor(l.r2*2) : l.r<.85 ? 2+Math.floor(l.r2*3) : l.r<.96 ? 5+Math.floor(l.r2*5) : 10+Math.floor(l.r2*6);
@@ -721,8 +749,8 @@ function construirEdificios(){
       return;
     }
     // Lo que permite la norma, con la forma de este lote
-    const esc = capa==='incent' && S.incent ? 'ampliado' : 'base';
-    const v = volLote(l, z, esc);
+    const esc = (capa==='incent' && S.incent) || (capa==='lab' && S.lab.inc) ? 'ampliado' : 'base';
+    const v = capa==='lab' ? volLote(l, z, esc, {forma:S.lab.forma, conBase:S.lab.conBase}) : volLote(l, z, esc);
     if(capa==='perm'){ const lote = R(-LW/2+.5, LW/2-.5, -LD/2+.5, LD/2-.5), Fc = g.perm>0 ? inHastaArea(lote, aR(lote)*(1-g.perm)) : lote;
       L.caja(l.x+(Fc.x0+Fc.x1)/2,0.2,l.z+(Fc.y0+Fc.y1)/2,Fc.x1-Fc.x0,0.04,Fc.y1-Fc.y0,0xe9e9e5); }
     const grupos = [];
@@ -746,14 +774,14 @@ function construirEdificios(){
 }
 
 // ═══ Cámara con transición suave ═══
-const cst = {x:0, z:0, fr:230, az:.72, el:.62}, obj = Object.assign({}, cst);
+const cst = {x:0, y:0, z:0, fr:230, az:.72, el:.62}, obj = Object.assign({}, cst);
 function ajustarLineas(){ lineMats.forEach(m => m.resolution.set(res.x, res.y)); }
 function tamano(){ const w=vista.clientWidth, h=vista.clientHeight; if(!w||!h) return; r.setSize(w,h,false); res.set(w,h); ajustarLineas(); }
 new ResizeObserver(tamano).observe(vista);
 function aplicarCam(){
   const w=vista.clientWidth||1, h=vista.clientHeight||1, a=w/h, fr = cst.fr * (a<1 ? 1.05 : 1);
   cam.left=-fr*a; cam.right=fr*a; cam.top=fr; cam.bottom=-fr; cam.updateProjectionMatrix();
-  const d=900; cam.position.set(cst.x+Math.sin(cst.az)*Math.cos(cst.el)*d, Math.sin(cst.el)*d, cst.z+Math.cos(cst.az)*Math.cos(cst.el)*d); cam.lookAt(cst.x,0,cst.z);
+  const d=900; cam.position.set(cst.x+Math.sin(cst.az)*Math.cos(cst.el)*d, cst.y+Math.sin(cst.el)*d, cst.z+Math.cos(cst.az)*Math.cos(cst.el)*d); cam.lookAt(cst.x,cst.y,cst.z);
 }
 const pts = new Map(); let pinch0=0, fr0=0, movio=false, down=null;
 cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); movio=false; down={x:e.clientX,y:e.clientY}; if(pts.size===2){ const [a,b]=[...pts.values()]; pinch0=Math.hypot(a.x-b.x,a.y-b.y); fr0=obj.fr; } });
@@ -784,6 +812,7 @@ function tocar(e){
     $('#ficha').style.display = 'block'; return;
   }
   const l = lotes[hit.instanceId], z = zonaBloque(l.i,l.j); if(z==='PARQUE') return;
+  if(S.capa==='lab'){ S.lab.lote = l; construirEdificios(); pintarLab(); enfocarLab(); return; }
   const g = POT[z], A = LW*LD, vb = volLote(l, z, 'base');
   $('#f-t').textContent = z + ' · ' + ZN[z]; $('#f-s').textContent = 'Terreno de ejemplo · ' + fmt(A) + ' m²';
   $('#f-b').innerHTML = [
@@ -793,8 +822,12 @@ function tocar(e){
     ['Pegado a vecinos hasta', g.bs+' m'],
     ['Arriba se separa', g.sepBS+' m de todos los bordes'],
     ['Suelo natural obligatorio', Math.round(g.perm*100)+'%'],
-    ['Este edificio', NOMBRE_FORMA[vb.forma] + ' · ' + vb.niv.length + ' niveles · ' + vb.alt + ' m']
-  ].map(([k,v]) => `<div class="f"><span>${k}</span><b>${v}</b></div>`).join('') + '<a href="https://mapa-pot.umbralgt.com">Ver la zona de tu terreno en el mapa →</a>';
+    ['Este edificio', NOMBRE_FORMA[vb.forma] + (vb.conBase ? ' sobre basamento' : '') + ' · ' + vb.niv.length + ' niveles · ' + vb.alt + ' m']
+  ].map(([k,v]) => `<div class="f"><span>${k}</span><b>${v}</b></div>`).join('') +
+    (VIDA[z] ? `<details class="mas" style="margin-top:8px"><summary>Qué significa vivir en ${z}</summary>${VIDA[z].map(([k,v]) => `<p><strong>${k}:</strong> ${v}</p>`).join('')}</details>` : '') +
+    (S.capa!=='lab' ? `<a href="#" id="f-lab">Probar formas en este terreno →</a>` : '') +
+    '<a href="https://mapa-pot.umbralgt.com">Ver la zona de tu terreno en el mapa →</a>';
+  const fl = $('#f-lab'); if(fl) fl.onclick = ev => { ev.preventDefault(); S.lab.lote = l; S.lab.zona = z; $('#ficha').style.display='none'; if(S.libre) ponerCapa('lab'); else { S.paso = PASOS.findIndex(p=>p.capa==='lab'); pintarPaso(); } };
   $('#ficha').style.display = 'block';
 }
 $('#ficha .x').onclick = () => { $('#ficha').style.display='none'; };
@@ -815,11 +848,104 @@ function dibujarEtiquetas(){
 
 // ═══ Recorrido ═══
 const ficha = z => { const g = POT[z]; return `<tr><td><span class="dot" style="background:${hexCss(ZC[z])}"></span>${z}</td><td>${g.ie}</td><td>${g.alt} m</td><td>${g.bs} m · ${g.sepBS} m</td><td>${Math.round(g.perm*100)}%</td></tr>`; };
+// ═══ Textos ampliados por paso (desplegables) ═══
+// "tension" es la lectura crítica de UMBRAL (opinión del laboratorio), distinta de la norma.
+const MAS = [
+  {simple:'Imaginá un barrio donde cada vecino construye como quiere: alguien levanta una torre junto a una casa de un piso y le quita el sol. El POT es el reglamento que pone orden, como las reglas de un juego que todos conocen antes de empezar.',
+   pro:'Da reglas parejas: cualquier persona puede saber qué se puede construir en su terreno antes de comprarlo o diseñarlo.',
+   contra:'Una sola regla para toda la ciudad no siempre encaja con cada barrio. Los planes locales existen para ajustarla, pero son pocos.',
+   tension:'La ciudad que vemos hoy no es accidental: es el resultado de décadas de decisiones, algunas planificadas y muchas no, sobre dónde y cómo podía crecer.'},
+  {simple:'Las calles anchas son como tuberías grandes: pueden llevar más personas, más carros y más transporte público. Por eso, junto a ellas, se permite construir más.',
+   pro:'Concentra el crecimiento donde ya hay infraestructura y transporte, en vez de esparcir la ciudad hacia zonas sin servicios.',
+   contra:'Muchas vías anchas no tienen transporte público eficiente: más edificios junto a ellas puede significar simplemente más tráfico.',
+   tension:'La lógica funcionó a medias. El mercado respondió a los incentivos del POT y las zonas G5 se densificaron, pero no con el perfil de vivienda que el sistema imaginaba. El suelo junto al Transmetro se encareció en lugar de volverse accesible.'},
+  {simple:'Mientras más lejos estás de una vía principal, menos se permite construir. Y en laderas y barrancos manda el terreno: construir en una pendiente fuerte es peligroso para quien vive ahí y para quienes viven abajo.',
+   pro:'Protege los barrancos, que absorben la lluvia, filtran el agua y evitan deslaves.',
+   contra:'La fiscalización es escasa: hay construcciones informales en zonas que deberían estar protegidas.',
+   tension:'El POT protege los barrancos en el papel. En la práctica, la presión de construcción informal es constante, y muchos predios catalogados como G0 tienen construcciones que nunca debieron existir.'},
+  {simple:'El índice es como un cupón de metros. Si tu terreno mide 300 m² y el índice es 2.7, podés construir 810 m², repartidos en los pisos que quieras. En G5, ese mismo terreno daría 1,800 m².',
+   pro:'Es una regla clara y fácil de calcular: con el área y la zona ya sabés el techo de cualquier proyecto.',
+   contra:'Un índice alto sube el precio del terreno antes de que se construya nada, porque el mercado ya sabe cuánto se puede hacer ahí.',
+   tension:'El POT esperaba que más metros permitidos generaran más oferta y bajaran los precios. Pasó lo contrario: el índice alto encareció el suelo. Las zonas que debían tener vivienda accesible, cerca del transporte, son hoy las más caras.'},
+  {simple:'Abajo, el edificio puede tocar a sus vecinos, como casas pegadas. Arriba tiene que separarse de todos lados, para que cada edificio reciba luz y aire.',
+   pro:'Garantiza luz, ventilación y privacidad entre edificios altos, y evita muros ciegos gigantes junto a la calle.',
+   contra:'Más altura significa más personas usando la misma calle, el mismo drenaje y la misma red eléctrica. Si la infraestructura no crece, el barrio lo siente.',
+   tension:'El sistema de alturas incentivó sobre todo torres de alta gama. La densidad vertical revalorizó el suelo, pero no necesariamente hizo la ciudad más accesible para quienes ya vivían ahí.'},
+  {simple:'El suelo natural funciona como una esponja: se toma el agua de la lluvia. Si todo es cemento, el agua corre por la calle hacia las colonias de abajo.',
+   pro:'Reduce inundaciones, recarga el agua subterránea y mantiene algo de verde en cada terreno.',
+   contra:'Es la regla más difícil de fiscalizar. Y en G4 y G5 no se exige, justo donde vive más gente.',
+   tension:'En la práctica, muchos predios G3 tienen menos suelo natural del que exige la norma. Las inundaciones de cada invierno son, en parte, el costo de esas decisiones.'},
+  {simple:'Es un trato: la Municipalidad te deja construir más si tu proyecto le aporta algo a la ciudad y cumple ciertas condiciones.',
+   pro:'Permite crecer más donde conviene, a cambio de beneficios para la ciudad.',
+   contra:'El trámite, las obligaciones y el seguro cuestan tiempo y dinero; no todos los proyectos pueden aprovecharlos.'}
+];
+function desplegables(k){
+  const m = MAS[k]; if(!m) return '';
+  return `<details class="mas"><summary>En palabras simples</summary><p>${m.simple}</p></details>
+    <details class="mas"><summary>A favor y en contra</summary><p><strong>A favor:</strong> ${m.pro}</p><p><strong>En contra:</strong> ${m.contra}</p></details>` +
+    (m.tension ? `<details class="mas tension"><summary>La tensión real · lectura de UMBRAL</summary><p>${m.tension}</p></details>` : '');
+}
+// Lo que dice cada zona, en palabras sencillas (para la ficha de un terreno)
+const VIDA = {
+  G2:[['Qué es','Transición entre lo rural y lo urbano: casas, dúplex y edificios de 2 a 3 niveles, con jardín.'],['Qué está pasando','La presión por construir más empieza a notarse y muchas colonias G2 cambian en silencio.'],['Cuidado','Sin transporte público cercano, más construcción significa más dependencia del carro.']],
+  G3:[['Qué es','La zona más común de la ciudad: el 57.5% de los predios del mapa son G3. Edificios medianos con poco suelo natural.'],['La promesa','Densificar con equilibrio: suficiente altura para más vivienda, suficiente escala para mantener vida de barrio.'],['La realidad','Es donde más se construye y donde menos llega el transporte público: más gente, más carros, más tráfico.']],
+  G4:[['Qué es','Alta densidad junto a vías de 30 m o más. El terreno se puede cubrir por completo; edificios de 8 a 20 niveles.'],['La lógica','Si construís donde ya hay infraestructura, el sistema te permite más. En teoría, así la ciudad no se expande hacia zonas sin servicios.'],['La realidad','Muchos predios G4 están junto a avenidas con tráfico intenso y sin transporte masivo eficiente.']],
+  G5:[['Qué es','La máxima densidad, junto a vías de 40 m o más: en la práctica, junto al Transmetro y las grandes avenidas.'],['La apuesta','Mucha gente cerca del transporte público, menos carros y una ciudad más compacta y caminable.'],['Lo que pasó','El transporte no se expandió al ritmo esperado. Las zonas G5 se densificaron igual, pero sin el transporte que justificaba esa densidad.']]
+};
+
 // Terreno de ejemplo para anclar etiquetas (zona y forma dadas, cerca del centro)
 function loteEjemplo(zona, forma){
   const c = lotes.filter(l => zonaBloque(l.i,l.j)===zona && volLote(l,zona,'base').forma===forma);
   c.sort((p,q) => Math.hypot(p.x-60,p.z-60) - Math.hypot(q.x-60,q.z-60)); return c[0];
 }
+// ═══ Un terreno, muchas posibilidades ═══
+const LUZ = {bloque:'Baja al centro', L:'Buena', patio:'Muy buena', torre:'Excelente'};
+function camLab(){ const L = S.lab, l = L.lote, v = volLote(l, L.zona, L.inc?'ampliado':'base', {forma:L.forma, conBase:L.conBase});
+  return {x:l.x, y:v.alt*0.42, z:l.z, fr:Math.max(48, v.alt*0.62+18), az:.72, el:.5}; }
+function enfocarLab(){ Object.assign(obj, camLab()); }
+function etqLab(){
+  const L = S.lab, l = L.lote, v = volLote(l, L.zona, L.inc?'ampliado':'base', {forma:L.forma, conBase:L.conBase});
+  const out = [[v.niv.length + ' niveles · ' + v.alt + ' m', [l.x, v.alt, l.z], 170, -40, 'neg']];
+  out.push([L.conBase && L.forma!=='bloque' ? 'Planta baja completa' : NOMBRE_FORMA[L.forma] + ' desde el suelo', [l.x-LW/2, 2, l.z], -190, 50]);
+  if(v.niv.some(n=>n.inc)) out.push(['Pisos con incentivos', [l.x+LW/2, v.alt-2, l.z], 160, 30, 'acc']);
+  return out;
+}
+function pintarLab(){
+  const el = $('#lab'); if(!el) return;
+  const L = S.lab, l = L.lote, esc = L.inc ? 'ampliado' : 'base', v = volLote(l, L.zona, esc, {forma:L.forma, conBase:L.conBase});
+  const seg = (attr, opts, val) => `<div class="seg">${opts.map(([k,t]) => `<button data-${attr}="${k}" class="${String(k)===String(val)?'sel':''}">${t}</button>`).join('')}</div>`;
+  const comp = ['bloque','L','patio','torre'].map(f => { const w = volLote(l, L.zona, esc, {forma:f, conBase:L.conBase});
+    return `<tr class="${f===L.forma?'on':''}"><td>${NOMBRE_FORMA[f]}</td><td>${fmt(w.m2)}</td><td>${w.niv.length} · ${w.alt} m</td><td>${Math.round(w.libre*100)}%</td><td>${LUZ[f]}</td></tr>`; }).join('');
+  el.innerHTML = `<div class="control">
+      <span class="mini-t">Zona del terreno</span>${seg('lz',[['G2','G2'],['G3','G3'],['G4','G4'],['G5','G5']],L.zona)}
+      <span class="mini-t">Forma</span>${seg('lf',[['bloque','Bloque'],['L','En L'],['patio','Patio'],['torre','Torre']],L.forma)}
+      <span class="mini-t">Planta baja</span>${seg('lb',[['1','Completa'],['0','Misma forma']],L.conBase?1:0)}
+      <span class="mini-t">Incentivos</span>${seg('li',[['0','Sin'],['1','Con']],L.inc?1:0)}
+    </div>
+    <div class="cifras-lab">
+      <div><b>${fmt(v.m2)} m²</b><span>de ${fmt(v.lim)} permitidos</span></div>
+      <div><b>${v.niv.length} · ${v.alt} m</b><span>niveles · altura</span></div>
+      <div><b>${Math.round(v.libre*100)}%</b><span>terreno libre abajo</span></div>
+      <div><b>${LUZ[L.forma]}</b><span>luz natural</span></div>
+    </div>
+    <span class="mini-t">Las cuatro formas en este terreno</span>
+    <div style="overflow-x:auto"><table class="z lab"><thead><tr><th>Forma</th><th>m²</th><th>Niveles · altura</th><th>Libre abajo</th><th>Luz</th></tr></thead><tbody>${comp}</tbody></table></div>
+    ${v.m2 < v.lim - 25 ? `<p class="nota">Esta forma no alcanza a usar todos los metros permitidos antes de llegar a la altura máxima o a las separaciones.</p>` : ''}
+    <details class="mas" open><summary>Por qué un arquitecto</summary><p>Estas formas usan los metros que permite la zona, pero no valen lo mismo. Un arquitecto compara opciones como estas, y otras que esta herramienta no dibuja, para encontrar la que vende más metros, da mejor luz y vistas, resuelve los parqueos y respeta a los vecinos. Esa decisión puede cambiar el valor de un terreno más que cualquier otra.</p></details>
+    <details class="mas"><summary>Qué necesita para ayudarte</summary><ul>
+      <li>Las medidas reales y la topografía del terreno.</li>
+      <li>Su zona G y las restricciones del predio: altura aeronáutica, conjunto histórico, planes locales.</li>
+      <li>Tu objetivo: vender, desarrollar, rentar o vivir ahí.</li>
+      <li>Los precios de venta de la zona y el presupuesto disponible.</li>
+      <li>Un estudio de suelos.</li>
+      <li>Los tiempos y requisitos del trámite ante la Municipalidad.</li></ul></details>`;
+  const re = () => { construirEdificios(); pintarLab(); etqs = etqLab(); enfocarLab(); };
+  $$('[data-lz]').forEach(b => b.onclick = () => { L.zona = b.dataset.lz; re(); });
+  $$('[data-lf]').forEach(b => b.onclick = () => { L.forma = b.dataset.lf; re(); });
+  $$('[data-lb]').forEach(b => b.onclick = () => { L.conBase = b.dataset.lb==='1'; re(); });
+  $$('[data-li]').forEach(b => b.onclick = () => { L.inc = b.dataset.li==='1'; re(); });
+}
+
 const PASOS = [
   {capa:'hoy', cam:{x:0,z:-20,fr:300}, t:'La ciudad sin reglas claras',
    p:`<p>Casas de un piso junto a edificios de doce, cada terreno resolviendo por su cuenta. Así creció buena parte de la ciudad.</p><p>El <strong>Plan de Ordenamiento Territorial (POT)</strong> ordena ese crecimiento: define cuánto y cómo se puede construir en cada terreno de la Ciudad de Guatemala.</p>`,
@@ -837,7 +963,7 @@ const PASOS = [
    p:`<p>Hasta cierta altura el edificio puede <strong>pegarse a los vecinos</strong>: es el bloque inferior. Más arriba debe <strong>separarse de todos los bordes</strong>, también de la calle: es el bloque superior. Por eso los pisos altos son más chicos.</p><p>Una <strong>torre sobre basamento</strong> lleva esa idea al extremo: un basamento bajo pegado a los vecinos y una torre delgada que sube más.</p>`,
    tablaAlt:true, etq:()=>{ const b = loteEjemplo('G5','bloque'), t = loteEjemplo('G5','torre'), L = [];
      if(b){ const v = volLote(b,'G5','base'); L.push(['Bloque inferior · pegado',[b.x-LW/2,6,b.z],-210,40],['Bloque superior · se separa',[b.x,v.alt-1,b.z],-180,-70]); }
-     if(t){ const v = volLote(t,'G5','base'); L.push(['Torre sobre basamento · ' + v.alt + ' m',[t.x,v.alt,t.z],150,-60]); }
+     if(t){ const v = volLote(t,'G5','base'); L.push([(v.conBase ? 'Torre sobre basamento · ' : 'Torre desde el suelo · ') + v.alt + ' m',[t.x,v.alt,t.z],150,-60]); }
      return L; }},
   {capa:'perm', cam:{x:170,z:-150,fr:170}, t:'El suelo que respira',
    p:`<p>Parte de cada terreno debe quedar como <strong>tierra natural</strong>, sin construcción ni sótano, para que el agua de lluvia se filtre y no inunde la calle.</p><p>En G2 es el 40% del terreno; en G3, el 10%. En G4 y G5 no se exige.</p>`,
@@ -845,6 +971,9 @@ const PASOS = [
   {capa:'incent', cam:{x:40,z:20,fr:200}, t:'Con incentivos se puede más',
    p:`<p>La Municipalidad permite construir más metros y más alto si el proyecto cumple las <strong>prácticas incentivables</strong> y hace las aportaciones urbanísticas que define el reglamento de incentivos. A cambio, el desarrollador contrata un seguro de caución.</p><p>Los pisos <strong style="color:#2f5bd3">azules</strong> son los que solo existen con incentivos.</p>`,
    ctrl:'incent', etq:()=>[['Pisos con incentivos',[150,35,50],90,-80,'acc']]},
+  {capa:'lab', cam:()=>camLab(), t:'Un terreno, muchas posibilidades', ctrl:'lab',
+   p:`<p>Acercate a un solo terreno y probá: cambiá su <strong>zona</strong>, su <strong>forma</strong>, si tiene <strong>planta baja completa</strong> y si usa <strong>incentivos</strong>.</p><p>La norma pone los metros; <strong>la forma la decide el diseño</strong>. Tocá otro terreno de la ciudad para probar ahí.</p>`,
+   etq:()=>etqLab()},
   {capa:'incent', cam:{x:0,z:-20,fr:300}, t:'¿Y tu terreno?', fin:true,
    p:`<p>Todo esto aplica a cada terreno de la ciudad. Buscá el tuyo en el mapa, calculá cuánto vale y miralo en 3D.</p>`,
    etq:()=>[]}
@@ -852,13 +981,14 @@ const PASOS = [
 function pintarPaso(){
   const P = PASOS[S.paso];
   S.capa = P.capa; S.verCentro = !!P.centro; construirEdificios();
-  Object.assign(obj, {x:0,z:0,fr:230,az:.72,el:.62}, P.cam);
+  Object.assign(obj, {x:0,y:0,z:0,fr:230,az:.72,el:.62}, typeof P.cam==='function' ? P.cam() : P.cam);
   $('#p-n').textContent = P.fin ? 'Cierre' : 'Paso ' + (S.paso+1) + ' de ' + (PASOS.length-1);
   $('#puntos').innerHTML = PASOS.slice(0,-1).map((_,k) => `<i class="${k<=S.paso?'on':''}"></i>`).join('');
   $('#eyebrow').textContent = P.fin ? 'Siguiente paso' : 'Plan de Ordenamiento Territorial';
-  $('#titulo').textContent = P.t; $('#texto').innerHTML = P.p;
+  $('#titulo').textContent = P.t; $('#texto').innerHTML = P.p + (P.fin ? '' : desplegables(S.paso));
   let c = '';
   if(P.ctrl==='via') c = `<div class="control"><span class="mini-t">Tipo de vía central (ancho de ejemplo)</span><div class="seg" id="seg-via">${Object.entries(TV).map(([k,v])=>`<button data-via="${k}" class="${k===S.tCentro?'sel':''}">${k}<br><small style="font-weight:500">${v.m} m</small></button>`).join('')}</div><div class="exp" id="exp-via"></div></div>`;
+  if(P.ctrl==='lab') c = '<div id="lab"></div>';
   if(P.ctrl==='incent') c = `<div class="control"><span class="mini-t">Mostrar</span><div class="seg"><button data-inc="0" class="${!S.incent?'sel':''}">Sin incentivos</button><button data-inc="1" class="${S.incent?'sel':''}">Con incentivos</button></div></div>`;
   if(P.tabla || P.tablaAlt) c += `<table class="z"><thead><tr><th>Zona</th><th>Índice</th><th>Altura</th><th>Pegado · separa</th><th>Natural</th></tr></thead><tbody>${['G2','G3','G4','G5'].map(ficha).join('')}</tbody></table>`;
   if(P.fin) c = `<a class="cta pri" href="https://mapa-pot.umbralgt.com">Buscar mi terreno en el mapa <span>→</span></a>
@@ -869,7 +999,7 @@ function pintarPaso(){
   $('#ctrl').innerHTML = c;
   $$('[data-via]').forEach(b => b.onclick = () => { S.tAnt = S.tCentro; S.tCentro = b.dataset.via; construirCalles(); construirEdificios(); pintarVia(); etqs = PASOS[S.paso].etq(); $$('[data-via]').forEach(x => x.classList.toggle('sel', x===b)); });
   $$('[data-inc]').forEach(b => b.onclick = () => { S.incent = b.dataset.inc==='1'; construirEdificios(); $$('[data-inc]').forEach(x => x.classList.toggle('sel', x===b)); });
-  S.tAnt = null; pintarVia();
+  S.tAnt = null; pintarVia(); if(P.ctrl==='lab') pintarLab();
   etqs = P.etq();
   $('#atras').disabled = S.paso===0; $('#sig').textContent = P.fin ? 'Volver al inicio' : S.paso===PASOS.length-2 ? 'Terminar' : 'Siguiente';
   $('#ficha').style.display='none';
@@ -884,17 +1014,17 @@ $('#sig').onclick = () => { if(S.libre) salirLibre(); S.paso = PASOS[S.paso].fin
 $('#atras').onclick = () => { if(S.libre) salirLibre(); S.paso = Math.max(0, S.paso-1); pintarPaso(); };
 
 // ═══ Exploración libre ═══
-const TXT_CAPA = {hoy:'La ciudad tal como creció, terreno por terreno.', zonas:'Cada terreno con su zona G, según el ancho de las vías y la distancia a ellas.', indice:'Lo que cada terreno puede construir sin trámites especiales. Tocá un terreno para ver sus números.', altura:'Bloque inferior pegado a los vecinos; bloque superior separado de todos los bordes.', perm:'En verde, el suelo natural que cada zona obliga a dejar.', incent:'En azul, los pisos que solo son posibles con incentivos municipales.'};
+const TXT_CAPA = {lab:'Un solo terreno: cambiá su zona, su forma, su planta baja y los incentivos. Tocá otro terreno para probar ahí.', hoy:'La ciudad tal como creció, terreno por terreno.', zonas:'Cada terreno con su zona G, según el ancho de las vías y la distancia a ellas.', indice:'Lo que cada terreno puede construir sin trámites especiales. Tocá un terreno para ver sus números.', altura:'Bloque inferior pegado a los vecinos; bloque superior separado de todos los bordes.', perm:'En verde, el suelo natural que cada zona obliga a dejar.', incent:'En azul, los pisos que solo son posibles con incentivos municipales.'};
 function entrarLibre(){ S.libre = true; $('#capas').style.display='flex'; ponerCapa(S.capa==='hoy'?'zonas':S.capa);
   $('#p-n').textContent = 'Exploración libre'; $('#puntos').innerHTML=''; $('#libre').style.visibility='hidden'; $('#sig').textContent='Volver al recorrido'; $('#atras').disabled=true; }
 function salirLibre(){ S.libre = false; $('#capas').style.display='none'; $('#libre').style.visibility='visible'; }
-function ponerCapa(c){ S.capa = c; S.verCentro = c==='zonas'; construirEdificios(); $$('[data-capa]').forEach(b => b.classList.toggle('sel', b.dataset.capa===c));
+function ponerCapa(c){ if(c!=='lab') obj.y = 0; S.capa = c; S.verCentro = c==='zonas'; construirEdificios(); $$('[data-capa]').forEach(b => b.classList.toggle('sel', b.dataset.capa===c));
   $('#titulo').textContent = $(`[data-capa="${c}"]`).textContent; $('#texto').innerHTML = `<p>${TXT_CAPA[c]}</p>`;
-  $('#ctrl').innerHTML = c==='zonas' ? `<div class="control"><span class="mini-t">Tipo de vía central</span><div class="seg">${Object.keys(TV).map(k=>`<button data-via="${k}" class="${k===S.tCentro?'sel':''}">${k}</button>`).join('')}</div></div>`
+  $('#ctrl').innerHTML = c==='lab' ? '<div id="lab"></div>' : c==='zonas' ? `<div class="control"><span class="mini-t">Tipo de vía central</span><div class="seg">${Object.keys(TV).map(k=>`<button data-via="${k}" class="${k===S.tCentro?'sel':''}">${k}</button>`).join('')}</div></div>`
     : c==='incent' ? `<div class="control"><div class="seg"><button data-inc="0" class="${!S.incent?'sel':''}">Sin incentivos</button><button data-inc="1" class="${S.incent?'sel':''}">Con incentivos</button></div></div>` : '';
   $$('[data-via]').forEach(b => b.onclick = () => { S.tCentro = b.dataset.via; construirCalles(); construirEdificios(); $$('[data-via]').forEach(x => x.classList.toggle('sel', x===b)); });
   $$('[data-inc]').forEach(b => b.onclick = () => { S.incent = b.dataset.inc==='1'; construirEdificios(); $$('[data-inc]').forEach(x => x.classList.toggle('sel', x===b)); });
-  etqs = []; }
+  if(c==='lab'){ pintarLab(); enfocarLab(); etqs = etqLab(); } else etqs = []; }
 $('#libre').onclick = entrarLibre;
 $$('[data-capa]').forEach(b => b.onclick = () => ponerCapa(b.dataset.capa));
 
@@ -902,11 +1032,12 @@ $$('[data-capa]').forEach(b => b.onclick = () => ponerCapa(b.dataset.capa));
 let t0 = performance.now();
 function bucle(t){
   const dt = Math.min(.05, (t-t0)/1000); t0 = t;
-  ['x','z','fr','az','el'].forEach(k => { cst[k] += (obj[k]-cst[k])*Math.min(1, dt*4); });
+  ['x','y','z','fr','az','el'].forEach(k => { cst[k] += (obj[k]-cst[k])*Math.min(1, dt*4); });
   if(!reduce && !document.hidden) moverTransito(dt);
   aplicarCam(); r.render(scene, cam); dibujarEtiquetas();
   requestAnimationFrame(bucle);
 }
+S.lab = {lote: lotes.find(l => l.i===3 && l.j===4 && l.a===1 && l.b===0), zona:'G4', forma:'torre', conBase:true, inc:false};
 construirBase(); construirCalles(); construirTransito(); tamano(); pintarPaso();
 window.__E = S;
 requestAnimationFrame(bucle);
